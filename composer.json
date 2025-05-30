@@ -1,0 +1,19 @@
+{
+    "name": "vendasoft/filament-activity-log-plugin",
+    "description": "Filament plugin pro zobrazeni activity logu",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Vaclav Gryc",
+            "email": "gryc.vaclav@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Vendasoft\\FilamentActivityLogPlugin\\": "src/"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
