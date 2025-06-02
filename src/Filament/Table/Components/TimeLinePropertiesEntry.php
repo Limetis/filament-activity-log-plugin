@@ -9,6 +9,7 @@ use Illuminate\Support\HtmlString;
 
 class TimeLinePropertiesEntry extends Entry
 {
+    protected ?Model $record = null;
     protected string $view = 'activitylog::filament.infolists.components.time-line-propertie-entry';
 
     protected function setup(): void
@@ -16,6 +17,13 @@ class TimeLinePropertiesEntry extends Entry
         parent::setup();
 
         $this->configurePropertieEntry();
+    }
+
+    public function withRecord($record): static
+    {
+        $this->record = $record;
+
+        return $this;
     }
 
     private function configurePropertieEntry(): void
@@ -36,11 +44,11 @@ class TimeLinePropertiesEntry extends Entry
         $subject = $state['subject'];
         $causer = $state['causer'];
 
-        $changes = $this->getPropertyChanges($properties);
+        $translatedProperties = $this->translateProperties($properties);
+        $changes = $this->getPropertyChanges($translatedProperties);
 
         $causerName = $this->getCauserName($state['causer'], 'full_name');
-
-        if (get_class($subject) !== get_class($causer)) {
+        if (get_class($subject) !== get_class($this->record)) {
             return new HtmlString(
                 sprintf(
                     '<strong>%s </strong> %s <strong>dovolenou:</strong> <br>%s <br><small> Upraveno v: <strong>%s</strong></small>',
@@ -59,6 +67,29 @@ class TimeLinePropertiesEntry extends Entry
                 implode('<br>', $changes),
                 $updatedAt,
             ));
+    }
+
+    protected function translateProperties(array $properties): array
+    {
+        $recordClass = get_class($this->record);
+        $translationsFromConfig = config('activitylog.filament.property_translates');
+        $translations = $recordClass && isset($translationsFromConfig[$recordClass])
+            ? $translationsFromConfig[$recordClass]
+            : [];
+
+        $translated = [];
+
+        foreach (['attributes', 'old'] as $section) {
+            if (! isset($properties[$section]) || ! is_array($properties[$section])) {
+                continue;
+            }
+
+            foreach ($properties[$section] as $key => $value) {
+                $translated[$section][$translations[$key] ?? $key] = $value;
+            }
+        }
+
+        return $translated;
     }
 
     protected $state;

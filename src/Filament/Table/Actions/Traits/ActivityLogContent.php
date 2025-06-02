@@ -82,7 +82,7 @@ trait ActivityLogContent
         $this->infolist(function (?Model $record, Infolist $infolist) {
             return $infolist
                 ->state(['activities' => $this->getActivityLogRecord($record, $this->getWithRelations())])
-                ->schema($this->getSchema());
+                ->schema($this->getSchema($record));
         });
     }
 
@@ -94,7 +94,7 @@ trait ActivityLogContent
             ->icon('heroicon-o-bell-alert');
     }
 
-    private function getSchema(): array
+    private function getSchema(Model $record): array
     {
         return [
             TimeLineRepeatableEntry::make('activities')
@@ -106,7 +106,8 @@ trait ActivityLogContent
                         ->color(function ($state) {
                             return $this->getTimelineIconColors()[$state] ?? 'primary';
                         }),
-                    TimeLinePropertiesEntry::make('activityData'),
+                    TimeLinePropertiesEntry::make('activityData')
+                        ->withRecord($record),
                     TextEntry::make('updated_at')
                         ->hiddenLabel()
                         ->since()
@@ -227,9 +228,7 @@ trait ActivityLogContent
 
     protected function getActivityLogRecord(?Model $record, ?array $relations = null): Collection
     {
-
         $activities = $this->getActivities($record, $relations);
-
         $activities = $activities->transform(function ($activity) {
             $activity->activityData = $this->formatActivityData($activity);
 
@@ -238,7 +237,10 @@ trait ActivityLogContent
 
         $activities = $activities
             ->sortByDesc(fn ($activity) => $activity->created_at)
-            ->filter(fn ($activity) => ! empty($activity->activityData['properties']))
+            ->filter(function ($activity) {
+                return ! empty($activity->activityData['properties']['attributes'])
+                    && ! empty($activity->activityData['properties']['old']);
+            })
             ->take($this->getLimit());
 
         return $activities;
