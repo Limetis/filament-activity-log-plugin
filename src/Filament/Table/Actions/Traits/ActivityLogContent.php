@@ -1,0 +1,366 @@
+<?php
+
+namespace Limetis\FilamentActivityLogPlugin\Filament\Table\Actions\Traits;
+
+use Carbon\Carbon;
+use Carbon\CarbonImmutable;
+use Carbon\Exceptions\InvalidFormatException;
+use Closure;
+use Filament\Actions\StaticAction;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Infolist;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
+use Spatie\Activitylog\Models\Activity;
+use Limetis\FilamentActivityLogPlugin\Filament\Table\Components\TimeLineIconEntry;
+use Limetis\FilamentActivityLogPlugin\Filament\Table\Components\TimeLinePropertiesEntry;
+use Limetis\FilamentActivityLogPlugin\Filament\Table\Components\TimeLineRepeatableEntry;
+
+trait ActivityLogContent
+{
+    private ?array $withRelations = null;
+
+    private ?array $timelineIcons = null;
+
+    private ?array $timelineIconColors = null;
+
+    private ?int $limit = 10;
+
+    protected Closure $modifyQueryUsing;
+
+    protected Closure|Builder $query;
+
+    protected ?Closure $activitiesUsing;
+
+    protected ?Closure $modifyTitleUsing;
+
+    protected ?Closure $shouldModifyTitleUsing;
+
+    public static function getDefaultName(): ?string
+    {
+        return 'activitylog_timeline';
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->configureInfolist();
+        $this->configureModal();
+        $this->activitiesUsing = null;
+        $this->modifyTitleUsing = null;
+        $this->shouldModifyTitleUsing = fn () => true;
+        $this->modifyQueryUsing = fn ($builder) => $builder;
+        $this->modalHeading = 'Log aktivit';
+        $this->modalDescription = 'Je zobrazeno posledních 10 změn uživatele';
+        $this->query = function (?Model $record) {
+            $activities = Activity::query()
+                ->with(['subject', 'causer'])
+                ->where(function (Builder $query) use ($record) {
+                    $query->where(function (Builder $q) use ($record) {
+                        $q->where('subject_type', $record->getMorphClass())
+                            ->where('subject_id', $record->getKey());
+                    })->when($this->getWithRelations(), function (Builder $query, array $relations) use ($record) {
+                        foreach ($relations as $relation) {
+                            $model = get_class($record->{$relation}()->getRelated());
+                            $query->orWhere(function (Builder $q) use ($record, $model, $relation) {
+                                $q->where('subject_type', (new $model)->getMorphClass())
+                                    ->whereIn('subject_id', $record->{$relation}()->withTrashed()->pluck('id'));
+                            });
+                        }
+
+                    });
+                });
+
+            return $activities;
+        };
+    }
+
+    private function configureInfolist(): void
+    {
+        $this->infolist(function (?Model $record, Infolist $infolist) {
+            return $infolist
+                ->state(['activities' => $this->getActivityLogRecord($record, $this->getWithRelations())])
+                ->schema($this->getSchema());
+        });
+    }
+
+    private function configureModal(): void
+    {
+        $this->slideOver()
+            ->modalIcon('heroicon-o-eye')
+            ->modalFooterActions(fn () => [])
+            ->icon('heroicon-o-bell-alert');
+    }
+
+    private function getSchema(): array
+    {
+        return [
+            TimeLineRepeatableEntry::make('activities')
+                ->schema([
+                    TimeLineIconEntry::make('activityData.event')
+                        ->icon(function ($state) {
+                            return $this->getTimelineIcons()[$state] ?? 'heroicon-m-check';
+                        })
+                        ->color(function ($state) {
+                            return $this->getTimelineIconColors()[$state] ?? 'primary';
+                        }),
+                    TimeLinePropertiesEntry::make('activityData'),
+                    TextEntry::make('updated_at')
+                        ->hiddenLabel()
+                        ->since()
+                        ->badge(),
+                ]),
+        ];
+    }
+
+    public function withRelations(?array $relations = null): ?StaticAction
+    {
+        $this->withRelations = $relations;
+
+        return $this;
+    }
+
+    public function getWithRelations(): ?array
+    {
+        return $this->evaluate($this->withRelations);
+    }
+
+    public function timelineIcons(?array $timelineIcons = null): ?StaticAction
+    {
+        $this->timelineIcons = $timelineIcons;
+
+        return $this;
+    }
+
+    public function getTimelineIcons(): ?array
+    {
+        return $this->evaluate($this->timelineIcons);
+    }
+
+    public function timelineIconColors(?array $timelineIconColors = null): ?StaticAction
+    {
+        $this->timelineIconColors = $timelineIconColors;
+
+        return $this;
+    }
+
+    public function getTimelineIconColors(): ?array
+    {
+        return $this->evaluate($this->timelineIconColors);
+    }
+
+    public function limit(?int $limit = 10): ?StaticAction
+    {
+        $this->limit = $limit;
+
+        return $this;
+    }
+
+    public function getLimit(): ?int
+    {
+        return $this->evaluate($this->limit);
+    }
+
+    public function query(Closure|Builder|null $query): static
+    {
+        $this->query = $query;
+
+        return $this;
+    }
+
+    public function getQuery(): ?Builder
+    {
+        return $this->evaluate($this->query);
+    }
+
+    public function modifyQueryUsing(Closure $closure): static
+    {
+        $this->modifyQueryUsing = $closure;
+
+        return $this;
+    }
+
+    public function getModifyQueryUsing(Builder $builder): Builder
+    {
+        return $this->evaluate($this->modifyQueryUsing, ['builder' => $builder]);
+    }
+
+    public function modifyTitleUsing(Closure $closure): static
+    {
+        $this->modifyTitleUsing = $closure;
+
+        return $this;
+    }
+
+    public function shouldModifyTitleUsing(Closure $closure): static
+    {
+        $this->shouldModifyTitleUsing = $closure;
+
+        return $this;
+    }
+
+    public function activitiesUsing(Closure $closure): static
+    {
+        $this->activitiesUsing = $closure;
+
+        return $this;
+    }
+
+    public function getActivitiesUsing(): ?Collection
+    {
+        return $this->evaluate($this->activitiesUsing);
+    }
+
+    protected function getActivities(?Model $record, ?array $relations = null): Collection
+    {
+        if ($activities = $this->getActivitiesUsing()) {
+            return $activities;
+        } else {
+            $builder = $this->getQuery();
+
+            return $this->getModifyQueryUsing($builder)
+                ->get();
+        }
+    }
+
+    protected function getActivityLogRecord(?Model $record, ?array $relations = null): Collection
+    {
+
+        $activities = $this->getActivities($record, $relations);
+
+        $activities = $activities->transform(function ($activity) {
+            $activity->activityData = $this->formatActivityData($activity);
+
+            return $activity;
+        });
+
+        $activities = $activities
+            ->sortByDesc(fn ($activity) => $activity->created_at)
+            ->filter(fn ($activity) => ! empty($activity->activityData['properties']))
+            ->take($this->getLimit());
+
+        return $activities;
+    }
+
+    public static function translateProperties(array $properties): array
+    {
+        $translations = [
+            'first_name' => 'Jméno',
+            'last_name' => 'Příjmení',
+            'start' => 'Začátek',
+            'end' => 'Konec',
+        ];
+
+        $translated = [];
+
+        foreach ($properties as $section => $values) {
+            if (! is_array($values)) {
+                $translated[$section] = $values;
+
+                continue;
+            }
+
+            foreach ($values as $key => $value) {
+                $translated[$section][$translations[$key] ?? $key] = $value;
+            }
+        }
+
+        return $translated;
+    }
+
+    protected function formatActivityData($activity): array
+    {
+        $activityProperties = self::clearUnchangedAttributes(json_decode($activity->properties, true));
+        $activityProperties = self::translateProperties($activityProperties);
+
+        return [
+            'log_name' => $activity->log_name,
+            'description' => $activity->description,
+            'subject' => $activity->subject,
+            'event' => $activity->event,
+            'causer' => $activity->causer,
+            'properties' => $this->formatDateValues($activityProperties),
+            'batch_uuid' => $activity->batch_uuid,
+            'update' => $activity->updated_at,
+        ];
+    }
+
+    private static function clearUnchangedAttributes(array|string|null $value): array|string|null
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        if (! isset($value['attributes'], $value['old'])) {
+            return $value;
+        }
+
+        $attributes = $value['attributes'];
+        $old = $value['old'];
+
+        foreach ($attributes as $key => $newValue) {
+            if (array_key_exists($key, $old) && $old[$key] === $newValue) {
+                unset($attributes[$key], $old[$key]);
+            }
+        }
+
+        return [
+            'attributes' => $attributes,
+            'old' => $old,
+        ];
+
+    }
+
+    private static function formatDateValues(array|string|null $value): array|string|null
+    {
+        if (is_array($value)) {
+            foreach ($value as &$item) {
+                $item = self::formatDateValues($item);
+            }
+
+            return $value;
+        }
+
+        if (is_numeric($value) && ! preg_match('/^\d{10,}$/', $value)) {
+            return $value;
+        }
+
+        if (self::isValidDate($value)) {
+            return Carbon::parse($value)
+                ->format(config('filament-activitylog.datetime_format', 'd/m/Y H:i:s'));
+        }
+
+        return $value;
+    }
+
+    private static function isValidDate(string $dateString, string $dateFormat = 'Y-m-d', string $dateTimeFormat = 'Y-m-d H:i:s'): bool|string
+    {
+        try {
+
+            $dateTime = CarbonImmutable::createFromFormat($dateFormat, $dateString);
+
+            if ($dateTime && $dateTime->format($dateFormat) === $dateString) {
+                return true;
+            }
+
+        } catch (InvalidFormatException $e) {
+
+        }
+
+        try {
+
+            $dateTime = CarbonImmutable::createFromFormat($dateTimeFormat, $dateString);
+
+            if ($dateTime && $dateTime->format($dateTimeFormat) === $dateString) {
+                return true;
+            }
+
+        } catch (InvalidFormatException $e) {
+
+        }
+
+        return false;
+    }
+}

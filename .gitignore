@@ -1,0 +1,47 @@
+# Dependency directories
+/vendor/
+/node_modules/
+
+# Laravel specific
+/bootstrap/cache/
+/storage/*.key
+/storage/app/*
+/storage/framework/*
+/storage/logs/*
+
+# Ignore test result logs and coverage reports
+.phpunit.result.cache
+coverage/
+
+# Composer artifacts
+composer.lock
+
+# Node artifacts
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Env files
+.env
+.env.*.local
+.env.local
+
+# PHPStorm
+*.iml
+
+# PHPUnit cache
+.phpunit.cache
+
+# Custom build or dist folders (if any)
+dist/
+build/

@@ -1,5 +1,5 @@
 {
-    "name": "vendasoft/filament-activity-log-plugin",
+    "name": "limetis/filament-activity-log-plugin",
     "description": "Filament plugin pro zobrazeni activity logu",
     "type": "library",
     "license": "MIT",
@@ -11,9 +11,15 @@
     ],
     "autoload": {
         "psr-4": {
-            "Vendasoft\\FilamentActivityLogPlugin\\": "src/"
+            "Limetis\\FilamentActivityLogPlugin\\": "src/"
         }
     },
     "minimum-stability": "dev",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^12.16",
+        "filament/tables": "^3.3",
+        "spatie/laravel-activitylog": "^4.10"
+    }
 }
