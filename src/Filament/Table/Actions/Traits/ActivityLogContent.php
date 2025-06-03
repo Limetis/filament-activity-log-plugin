@@ -60,7 +60,7 @@ trait ActivityLogContent
                 ->where(function (Builder $query) use ($record) {
                     $query->where(function (Builder $q) use ($record) {
                         $q->where('subject_type', $record->getMorphClass())
-                            ->where('subject_id', $record->getKey())->withTrashed();
+                            ->where('subject_id', $record->getKey());
                     })->when($this->getWithRelations(), function (Builder $query, array $relations) use ($record) {
                         foreach ($relations as $relation) {
                             $model = get_class($record->{$relation}()->getRelated());
