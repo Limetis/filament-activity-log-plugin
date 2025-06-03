@@ -46,14 +46,17 @@ class TimeLinePropertiesEntry extends Entry
 
         $translatedProperties = $this->translateProperties($properties);
         $changes = $this->getPropertyChanges($translatedProperties);
+        $causerFieldName = config('activitylog.filament.causer_field_name', 'name');
 
-        $causerName = $this->getCauserName($state['causer'], 'full_name');
-        if (get_class($subject) !== get_class($this->record)) {
+        $causerName = $this->getCauserName($causer, $causerFieldName);
+        $subjectClassName = get_class($subject);
+        if ($subjectClassName !== get_class($this->record)) {
             return new HtmlString(
                 sprintf(
-                    '<strong>%s </strong> %s <strong>dovolenou:</strong> <br>%s <br><small> Upraveno v: <strong>%s</strong></small>',
+                    '<strong>%s </strong> %s <strong>%s:</strong> <br>%s <br><small> Upraveno v: <strong>%s</strong></small>',
                     $causerName,
                     $this->translateEvent($state['event']),
+                    $this->getTransformedSubjectName($subjectClassName),
                     implode('<br>', $changes),
                     $updatedAt,
                 ));
@@ -67,6 +70,15 @@ class TimeLinePropertiesEntry extends Entry
                 implode('<br>', $changes),
                 $updatedAt,
             ));
+    }
+
+    private function getTransformedSubjectName(string $subjectClassName): string
+    {
+
+        $translationsFromConfig = config('activitylog.filament.subject_translations');
+        return $subjectClassName && isset($translationsFromConfig[$subjectClassName])
+            ? $translationsFromConfig[$subjectClassName]
+            : collect(explode('\\', $subjectClassName))->last();
     }
 
     protected function translateProperties(array $properties): array

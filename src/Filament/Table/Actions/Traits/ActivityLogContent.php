@@ -239,7 +239,7 @@ trait ActivityLogContent
             ->sortByDesc(fn ($activity) => $activity->created_at)
             ->filter(function ($activity) {
                 return ! empty($activity->activityData['properties']['attributes'])
-                    && ! empty($activity->activityData['properties']['old']);
+                    || ! empty($activity->activityData['properties']['old']);
             })
             ->take($this->getLimit());
 
