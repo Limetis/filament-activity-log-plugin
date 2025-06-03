@@ -245,37 +245,9 @@ trait ActivityLogContent
 
         return $activities;
     }
-
-    public static function translateProperties(array $properties): array
-    {
-        $translations = [
-            'first_name' => 'Jméno',
-            'last_name' => 'Příjmení',
-            'start' => 'Začátek',
-            'end' => 'Konec',
-        ];
-
-        $translated = [];
-
-        foreach ($properties as $section => $values) {
-            if (! is_array($values)) {
-                $translated[$section] = $values;
-
-                continue;
-            }
-
-            foreach ($values as $key => $value) {
-                $translated[$section][$translations[$key] ?? $key] = $value;
-            }
-        }
-
-        return $translated;
-    }
-
     protected function formatActivityData($activity): array
     {
         $activityProperties = self::clearUnchangedAttributes(json_decode($activity->properties, true));
-        $activityProperties = self::translateProperties($activityProperties);
 
         return [
             'log_name' => $activity->log_name,
@@ -317,6 +289,10 @@ trait ActivityLogContent
 
     private static function formatDateValues(array|string|null $value): array|string|null
     {
+        if($value === null){
+            return null;
+        }
+
         if (is_array($value)) {
             foreach ($value as &$item) {
                 $item = self::formatDateValues($item);
