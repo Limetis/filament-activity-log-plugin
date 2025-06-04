@@ -9,11 +9,11 @@ use Illuminate\Support\HtmlString;
 
 /**
  * Class TimeLinePropertiesEntry
- * 
+ *
  * This component displays property changes in an activity log timeline.
  * It formats and renders the changes made to model properties, showing the old and new values,
  * who made the changes, and when they were made.
- * 
+ *
  * @package Limetis\FilamentActivityLogPlugin\Filament\Table\Components
  */
 class TimeLinePropertiesEntry extends Entry
@@ -79,6 +79,7 @@ class TimeLinePropertiesEntry extends Entry
      */
     private function modifiedProperties($state): ?HtmlString
     {
+
         $properties = $state['properties'];
         if (empty($properties)) {
             return null;
@@ -262,10 +263,25 @@ class TimeLinePropertiesEntry extends Entry
         $changes = [];
 
         foreach ($newValues as $key => $newValue) {
-            $oldValue = is_array($oldValues[$key]) ? json_encode($oldValues[$key]) : $oldValues[$key] ?? '-';
+            if (!array_key_exists($key, $oldValues)) {
+                continue;
+            }
+
+            $oldValue = $this->formatNewValue($oldValues[$key]);
             $newValue = $this->formatNewValue($newValue);
-            if (isset($oldValues[$key]) && $oldValues[$key] != $newValue) {
-                $changes[] = sprintf('- %s z <strong>%s</strong> na <strong>%s</strong>', $key, htmlspecialchars($oldValue), htmlspecialchars($newValue));
+
+            // If both are null (meaning both are "Null" string), skip
+            if ($oldValue === null && $newValue === null) {
+                continue;
+            }
+
+            if ($oldValue !== $newValue) {
+                $changes[] = sprintf(
+                    '- %s z <strong>%s</strong> na <strong>%s</strong>',
+                    htmlspecialchars(strval($key)),
+                    htmlspecialchars($oldValue),
+                    htmlspecialchars($newValue)
+                );
             }
         }
 
@@ -301,6 +317,18 @@ class TimeLinePropertiesEntry extends Entry
      */
     private function formatNewValue($value): string
     {
-        return is_array($value) ? json_encode($value) : $value ?? '—';
+        if (is_bool($value)) {
+            return $value ? 'True' : 'False';
+        }
+
+        if (in_array($value, ['0', '1'], true)) {
+            return $value === '1' ? 'True' : 'False';
+        }
+
+        if (is_null($value)) {
+            return 'Null';
+        }
+
+        return is_array($value) ? json_encode($value) : strval($value);
     }
 }
