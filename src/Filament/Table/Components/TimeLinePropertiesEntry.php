@@ -86,16 +86,12 @@ class TimeLinePropertiesEntry extends Entry
         }
 
         $updatedAt = $state['update']->format('d/m/Y H:i:s');
-
-        $subject = $state['subject'];
+        $subjectClassName = $state['subject_type'];
         $causer = $state['causer'];
-
-        $translatedProperties = $this->translateProperties($properties, $subject);
+        $translatedProperties = $this->translateProperties($properties, $subjectClassName);
         $changes = $this->getPropertyChanges($translatedProperties);
         $causerFieldName = config('activitylog.filament.causer_field_name', 'name');
-
         $causerName = $this->getCauserName($causer, $causerFieldName);
-        $subjectClassName = get_class($subject);
         if ($subjectClassName !== get_class($this->record)) {
             return new HtmlString(
                 sprintf(
@@ -138,15 +134,14 @@ class TimeLinePropertiesEntry extends Entry
      * Maps property keys to their translated versions based on the subject model.
      *
      * @param array $properties The properties to translate
-     * @param Model|null $subject The subject model
+     * @param string|null $subjectType The subject model
      * @return array The translated properties
      */
-    protected function translateProperties(array $properties, ?Model $subject): array
+    protected function translateProperties(array $properties, ?string $subjectType): array
     {
-        $recordClass = get_class($subject);
         $translationsFromConfig = config('activitylog.filament.property_translates');
-        $translations = $recordClass && isset($translationsFromConfig[$recordClass])
-            ? $translationsFromConfig[$recordClass]
+        $translations = $subjectType && isset($translationsFromConfig[$subjectType])
+            ? $translationsFromConfig[$subjectType]
             : [];
 
         $translated = [];

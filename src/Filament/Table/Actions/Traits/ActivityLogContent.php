@@ -450,6 +450,7 @@ trait ActivityLogContent
             'properties' => $this->formatDateValues($activityProperties),
             'batch_uuid' => $activity->batch_uuid,
             'update' => $activity->updated_at,
+            'subject_type' => $activity->subject_type,
         ];
     }
 
