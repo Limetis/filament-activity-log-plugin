@@ -8,17 +8,31 @@ class FilamentActivityLogPluginServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->mergeConfigFrom(
-            __DIR__.'/../../config/filament-activitylog.php', 'filament-activitylog'
-        );
+        $configPath = __DIR__ . '/../../config/filament-activitylog.php';
+
+        if (file_exists($configPath)) {
+            $this->mergeConfigFrom($configPath, 'filament-activitylog');
+        }
     }
 
     public function boot(): void
     {
-        $this->loadViewsFrom(__DIR__.'/../../resources/views', 'activitylog');
-        $this->loadTranslationsFrom(__DIR__.'/../../resources/lang', 'activitylog');
-        $this->publishes([
-            __DIR__.'/../../config/filament-activitylog.php' => config_path('filament-activitylog.php'),
-        ], 'filament-activity-log-config');
+        $viewsPath = __DIR__ . '/../../resources/views';
+        $langPath = __DIR__ . '/../../resources/lang';
+        $configPath = __DIR__ . '/../../config/filament-activitylog.php';
+
+        if (is_dir($viewsPath)) {
+            $this->loadViewsFrom($viewsPath, 'activitylog');
+        }
+
+        if (is_dir($langPath)) {
+            $this->loadTranslationsFrom($langPath, 'activitylog');
+        }
+
+        if (file_exists($configPath)) {
+            $this->publishes([
+                $configPath => config_path('filament-activitylog.php'),
+            ], 'filament-activity-log-config');
+        }
     }
 }
